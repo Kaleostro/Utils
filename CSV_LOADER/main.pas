@@ -330,9 +330,10 @@ begin
 
           if
           //это поле identity - почистим его
-          ((column_Default = '') and (DATA_TYPE = 'int'))
+          //((column_Default = '') and (DATA_TYPE = 'int'))
           //это поле не найдено в БД - почистим его
-          or (DATA_TYPE = '')
+          //or
+          (DATA_TYPE = '')
           then
           begin
             //это поле identity - почистим его
@@ -347,7 +348,6 @@ begin
             fieldstr := fieldstr + ', ' + s;
 
             if ((DATA_TYPE = 'numeric')
-            or  (DATA_TYPE = 'int')
             or  (DATA_TYPE = 'money'))
             then
              for r := 1 to SG.RowCount - 1 do
@@ -355,6 +355,15 @@ begin
                ss := StringReplace(SG.Cells[c, r], ',','.', [rfReplaceAll]);
                ss := StringReplace(ss, ' ','', [rfReplaceAll]);
                SG.Cells[c, r] := 'convert('+DATA_TYPE+'('+NUMERIC_PRECISION+','+NUMERIC_SCALE+'),'+ss+')'+z;
+             end
+            else
+            if DATA_TYPE = 'int'
+            then
+             for r := 1 to SG.RowCount - 1 do
+             begin
+               ss := StringReplace(SG.Cells[c, r], ',','.', [rfReplaceAll]);
+               ss := StringReplace(ss, ' ','', [rfReplaceAll]);
+               SG.Cells[c, r] := 'convert('+DATA_TYPE+','+ss+')'+z;
              end
             else
             if DATA_TYPE = 'float' then
@@ -420,6 +429,7 @@ begin
         s := SG.Cells[c, r];
           RecStr := RecStr + s;
       end;
+      QInsert.SQL.Add('SET IDENTITY_INSERT '+Tablename+' ON');
       QInsert.SQL.Add('Insert into '+Tablename);
       QInsert.SQL.Add('('+fieldstr+')');
       QInsert.SQL.Add('select '+recstr);

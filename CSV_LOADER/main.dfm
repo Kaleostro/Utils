@@ -108,7 +108,7 @@ object MainForm: TMainForm
     object count_lb: TLabel
       Left = 259
       Top = 89
-      Width = 102
+      Width = 7
       Height = 14
       Caption = '0'
       Font.Charset = DEFAULT_CHARSET
