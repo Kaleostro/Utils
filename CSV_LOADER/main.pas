@@ -110,8 +110,14 @@ end;
 
 procedure TMainForm.ShowFileList;
 begin
+
   if DirectoryExists(Patch_Ed.Text) then
+  begin
+    FileListBox.Clear;
     FileListBox.Directory := Patch_Ed.Text;
+    FileListBox.Update;
+  end;
+
 end;
 
 procedure TMainForm.ADOConnection1AfterConnect(Sender: TObject);
@@ -429,6 +435,7 @@ begin
         s := SG.Cells[c, r];
           RecStr := RecStr + s;
       end;
+
       QInsert.SQL.Add('SET IDENTITY_INSERT '+Tablename+' ON');
       QInsert.SQL.Add('Insert into '+Tablename);
       QInsert.SQL.Add('('+fieldstr+')');
