@@ -229,6 +229,7 @@ object MainForm: TMainForm
       'Provider=SQLOLEDB.1;Password=123456;Persist Security Info=True;U' +
       'ser ID=dca;Initial Catalog=IFRS09_SecIssue_test;Data Source=finp' +
       'erftest'
+    KeepConnection = False
     Provider = 'SQLOLEDB.1'
     AfterConnect = ADOConnection1AfterConnect
     BeforeDisconnect = ADOConnection1BeforeDisconnect
@@ -250,14 +251,13 @@ object MainForm: TMainForm
   object QSchema: TADOQuery
     Connection = ADOConnection1
     Parameters = <>
-    SQL.Strings = (
-      'select '
-      'column_name,'
-      'DATA_TYPE,'
-      'column_Default'
-      'from INFORMATION_SCHEMA.COLUMNS'
-      'where TABLE_NAME = '#39#39#39':table'#39#39#39)
     Left = 304
     Top = 120
+  end
+  object QChkIdentityField: TADOQuery
+    Connection = ADOConnection1
+    Parameters = <>
+    Left = 304
+    Top = 152
   end
 end
