@@ -17,7 +17,6 @@ type
     ADOConnection1: TADOConnection;
     Qdelete: TADOQuery;
     Qinsert: TADOQuery;
-    Load_Cur_Btn: TButton;
     spid_ed: TEdit;
     QSchema: TADOQuery;
     Panel3: TPanel;
@@ -32,12 +31,14 @@ type
     false_lb: TLabel;
     count_lb: TLabel;
     QChkIdentityField: TADOQuery;
+    RadioGroup1: TRadioGroup;
+    RB_sel: TRadioButton;
+    RB_all: TRadioButton;
 
-    procedure Load_All_BtnClick(Sender: TObject);
+    procedure Load_BtnClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure BitBtn1Click(Sender: TObject);
     procedure FileListBoxClick(Sender: TObject);
-    procedure Load_Cur_BtnClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure ServerSet_BtnClick(Sender: TObject);
     procedure ADOConnection1AfterConnect(Sender: TObject);
@@ -185,7 +186,7 @@ begin
   setFlag(0);
 end;
 
-procedure TMainForm.Load_All_BtnClick(Sender: TObject);
+procedure TMainForm.Load_BtnClick(Sender: TObject);
 var i: integer;
 var s: string;
 begin
@@ -200,25 +201,20 @@ begin
   StringGrid1.Enabled := false;
   for i := 0 to FileListBox.Items.Count - 1 do
   begin
-    s := FileListBox.Items[i];
-    s := Copy(s, 1, Length(s)-4);
-    tablename_ed.text := s;
-    ReadTabFile(FileListBox.Items[i], ';', StringGrid1);
-    Log('Загрузка файла: '+FileListBox.Items[i]);
-    SaveToBase(StringGrid1, tablename_ed.text, spid_ed.Text);
-    sleep(1000);
+    if FileListBox.Selected[i] or RB_all.Checked then
+    begin
+      s := FileListBox.Items[i];
+      s := Copy(s, 1, Length(s)-4);
+      tablename_ed.text := s;
+      ReadTabFile(FileListBox.Items[i], ';', StringGrid1);
+      Log('Загрузка файла: '+FileListBox.Items[i]);
+      SaveToBase(StringGrid1, tablename_ed.text, spid_ed.Text);
+      sleep(1000);
+    end;
   end;
   StringGrid1.Enabled := true;
   Screen.Cursor := crDefault;
 
-end;
-
-procedure TMainForm.Load_Cur_BtnClick(Sender: TObject);
-begin
-  Log('Загрузка файла: '+FileListBox.Items[FileListBox.ItemIndex]);
-  StringGrid1.Enabled := false;
-  SaveToBase(StringGrid1, tablename_ed.text, spid_ed.Text);
-  StringGrid1.Enabled := true;
 end;
 
 procedure TMainForm.ReadTabFile(FN: TFileName; FieldSeparator: Char; SG: TStringGrid);

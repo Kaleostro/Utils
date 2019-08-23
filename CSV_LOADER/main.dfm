@@ -80,7 +80,7 @@ object MainForm: TMainForm
       ParentFont = False
     end
     object ok_lb: TLabel
-      Left = 127
+      Left = 23
       Top = 61
       Width = 24
       Height = 23
@@ -93,7 +93,7 @@ object MainForm: TMainForm
       ParentFont = False
     end
     object false_lb: TLabel
-      Left = 157
+      Left = 53
       Top = 61
       Width = 52
       Height = 23
@@ -124,9 +124,9 @@ object MainForm: TMainForm
       Top = 30
       Width = 115
       Height = 25
-      Caption = #1047#1072#1075#1088#1091#1079#1080#1090#1100' '#1074#1089#1077
+      Caption = #1047#1072#1075#1088#1091#1079#1080#1090#1100
       TabOrder = 0
-      OnClick = Load_All_BtnClick
+      OnClick = Load_BtnClick
     end
     object tablename_ed: TEdit
       Left = 2
@@ -135,21 +135,12 @@ object MainForm: TMainForm
       Height = 19
       TabOrder = 1
     end
-    object Load_Cur_Btn: TButton
-      Left = 6
-      Top = 61
-      Width = 115
-      Height = 25
-      Caption = #1047#1072#1075#1088#1091#1079#1080#1090#1100' '#1086#1090#1082#1088#1099#1090#1099#1081
-      TabOrder = 2
-      OnClick = Load_Cur_BtnClick
-    end
     object spid_ed: TEdit
       Left = 333
       Top = 3
       Width = 41
       Height = 19
-      TabOrder = 3
+      TabOrder = 2
       Text = '1'
     end
     object Log_memo: TMemo
@@ -159,7 +150,7 @@ object MainForm: TMainForm
       Height = 107
       Align = alRight
       Anchors = [akLeft, akTop, akRight, akBottom]
-      TabOrder = 4
+      TabOrder = 3
     end
     object ServerSet_Btn: TButton
       Left = 259
@@ -167,8 +158,33 @@ object MainForm: TMainForm
       Width = 115
       Height = 25
       Caption = #1053#1072#1089#1090#1088#1086#1081#1082#1072' '#1073#1072#1079#1099
-      TabOrder = 5
+      TabOrder = 4
       OnClick = ServerSet_BtnClick
+    end
+    object RadioGroup1: TRadioGroup
+      Left = 127
+      Top = 25
+      Width = 98
+      Height = 64
+      TabOrder = 5
+    end
+    object RB_sel: TRadioButton
+      Left = 140
+      Top = 40
+      Width = 77
+      Height = 17
+      Caption = #1074#1099#1073#1088#1072#1085#1085#1099#1077
+      Checked = True
+      TabOrder = 6
+      TabStop = True
+    end
+    object RB_all: TRadioButton
+      Left = 140
+      Top = 63
+      Width = 77
+      Height = 17
+      Caption = #1074#1089#1077
+      TabOrder = 7
     end
   end
   object Panel2: TPanel
