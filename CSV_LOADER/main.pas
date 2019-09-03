@@ -14,7 +14,7 @@ type
     Panel2: TPanel;
     FileListBox: TFileListBox;
     tablename_ed: TEdit;
-    ADOConnection1: TADOConnection;
+    ADOConn: TADOConnection;
     Qdelete: TADOQuery;
     Qinsert: TADOQuery;
     spid_ed: TEdit;
@@ -41,8 +41,8 @@ type
     procedure FileListBoxClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure ServerSet_BtnClick(Sender: TObject);
-    procedure ADOConnection1AfterConnect(Sender: TObject);
-    procedure ADOConnection1BeforeDisconnect(Sender: TObject);
+    procedure ADOConnAfterConnect(Sender: TObject);
+    procedure ADOConnBeforeDisconnect(Sender: TObject);
   private
     procedure ReadTabFile(FN: TFileName; FieldSeparator:Char; SG: TStringGrid);
     procedure ShowFileList;
@@ -63,8 +63,15 @@ var
 
 
 implementation
-  uses clipbrd, ADOConEd;
+uses clipbrd, ADOConEd;
+
 {$R *.dfm}
+
+resourcestring
+  DELETE_P_TABLE       = 'DELETE %s FROM %s where spid = %s';
+  SELECT_TABLE_SCHEMA  = 'SELECT DATA_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE, CHARACTER_MAXIMUM_LENGTH, COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' AND COLUMN_NAME = ''%s''';
+  CHECK_IDENTITY_FIELD = 'IF EXISTS(SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = ''%s'' AND TABLE_SCHEMA = ''dbo'' AND COLUMNPROPERTY(OBJECT_ID(''%s''), COLUMN_NAME, ''ISIDENTITY'') = 1) SET IDENTITY_INSERT %s ON';
+  INSERT_TO_TABLE      = 'INSERT INTO %s (%s) VALUES(%s)';
 
 procedure TMainForm.setFlag(f:smallint);
 begin
@@ -86,9 +93,7 @@ begin
          ok_lb.Font.color    := clGrayText;
          false_lb.Font.color := clGrayText;
      end;
-
   end;
-
 end;
 
 procedure TMainForm.SetConLabel(Server, Base: string);
@@ -99,10 +104,17 @@ end;
 
 function TMainForm.CheckConnect:boolean;
 begin;
-  ADOConnection1.Close;
-  ADOConnection1.Open;
-  Log('�������� ����������� � ��');
-  Result :=  ADOConnection1.Connected;
+  ADOConn.Close;
+  ADOConn.Open;
+
+  Log('Проверка подключения к БД');
+
+  Result :=  ADOConn.Connected;
+
+  if Result then
+    Log('Соединение с БД установлено')
+  else
+    Log('Нет соединение с БД');
 end;
 
 procedure TMainForm.Log(Mes:string);
@@ -122,7 +134,7 @@ begin
 
 end;
 
-procedure TMainForm.ADOConnection1AfterConnect(Sender: TObject);
+procedure TMainForm.ADOConnAfterConnect(Sender: TObject);
 var str :TStringList;
 begin
 
@@ -130,16 +142,16 @@ begin
   try
 
     str.Delimiter := ';';
-    str.DelimitedText := ADOConnection1.ConnectionString;
+    str.DelimitedText := ADOConn.ConnectionString;
     SetConLabel(str.Values['Source'], str.Values['Catalog']);
   finally
     str.Free;
   end;
 end;
 
-procedure TMainForm.ADOConnection1BeforeDisconnect(Sender: TObject);
+procedure TMainForm.ADOConnBeforeDisconnect(Sender: TObject);
 begin
-  SetConLabel('','');
+  SetConLabel('', '');
 end;
 
 procedure TMainForm.BitBtn1Click(Sender: TObject);
@@ -148,15 +160,13 @@ begin
 end;
 
 procedure TMainForm.FileListBoxClick(Sender: TObject);
-var filename: string;
-var tablename: string;
+var filename:  string;
 begin
-  
   filename := FileListBox.Items[FileListBox.ItemIndex];
   
   if not FileExists(filename) then
   begin
-    Log('������: ���� '+filename+' �� ������.');
+    Log('Ошибка: файл '+filename+' не найден.');
     ShowFileList;
     Exit;
   end;
@@ -164,9 +174,8 @@ begin
   Screen.Cursor := crHourGlass;
 
   ReadTabFile(FileListBox.Items[FileListBox.ItemIndex], ';', StringGrid1);
-    
-  tablename := Copy(filename, 1, Length(filename)-4);
-  tablename_ed.text := tablename;
+
+  tablename_ed.text := ChangeFileExt(ExtractFileName(filename), '');
 
   Screen.Cursor := crDefault;
   setFlag(0);
@@ -188,33 +197,45 @@ end;
 
 procedure TMainForm.Load_BtnClick(Sender: TObject);
 var i: integer;
-var s: string;
 begin
 
   if not CheckConnect then
   begin
-    Log('�� ������� ������������ � ��');
+    Log('Не удалось подключиться к БД');
     Exit;
   end;
 
-  Screen.Cursor := crHourGlass;
+  Screen.Cursor       := crHourGlass;
   StringGrid1.Enabled := false;
+
   for i := 0 to FileListBox.Items.Count - 1 do
   begin
     if FileListBox.Selected[i] or RB_all.Checked then
     begin
-      s := FileListBox.Items[i];
-      s := Copy(s, 1, Length(s)-4);
-      tablename_ed.text := s;
+      tablename_ed.text := ChangeFileExt(ExtractFileName(FileListBox.Items[i]),'');
+
       ReadTabFile(FileListBox.Items[i], ';', StringGrid1);
-      Log('�������� �����: '+FileListBox.Items[i]);
-      SaveToBase(StringGrid1, tablename_ed.text, spid_ed.Text);
+
+      Log('Загрузка файла: '+FileListBox.Items[i]);
+
+      if SaveToBase(StringGrid1, tablename_ed.text, spid_ed.Text) then
+      begin
+        Log('Файл загружен');
+        setFlag(1);
+      end
+      else
+      begin
+        Log('При загрузке файла возникла ошибка');
+        setFlag(2);
+      end;
+
+      // Чтобы интерфейс не замерзал надолго
+      Application.ProcessMessages;
       sleep(1000);
     end;
   end;
   StringGrid1.Enabled := true;
-  Screen.Cursor := crDefault;
-
+  Screen.Cursor := crDefault; 
 end;
 
 procedure TMainForm.ReadTabFile(FN: TFileName; FieldSeparator: Char; SG: TStringGrid);
@@ -281,90 +302,87 @@ begin
 end;
 
 function TMainForm.SaveToBase(SG: TStringGrid; TableName: string; spid: string): boolean;
-var r       : integer;
-var c       : integer;
-var fieldstr: string;
-var recstr  : string;
-var z,s,ss  : string;
-
-var
-DATA_TYPE, NUMERIC_PRECISION,NUMERIC_SCALE,CHARACTER_MAXIMUM_LENGTH, column_Default:string;
-
-var loadflag :boolean;
-    error: integer;
-label
-  FIN;
-
+var r, row_count:     integer;
+    c, BATCH_SIZE:    integer;
+    fieldstr, recstr: string;
+    s, ss:            string;
+    field_delimiter:  char;
+    DATA_TYPE, NUMERIC_PRECISION,NUMERIC_SCALE,CHARACTER_MAXIMUM_LENGTH, column_Default: string;
 begin
+  Result          := False;
+  field_delimiter := ',';
 
-  loadflag := false;
-  error    := 0;
+  if not Assigned(SG) then
+  begin
+    Log('Ошибка: не передан набор данных для загрузки');
+    Exit;
+  end;
 
   if TableName = '' then
   begin
-    Log('������: �� ���������� ��� �������');
-    goto FIN;
+    Log('Ошибка: не определено имя таблицы');
+    Exit;
   end;
 
   if not CheckConnect then
   begin
-    Log('�� ������� ������������ � ��');
-    goto FIN;
+    Log('Не удалось подключиться к БД');
+    Exit;
   end;
 
   Qdelete.Close;
-  Qdelete.SQL.Clear;
-  Qdelete.SQL.Add('delete from '+TableName+' where spid = '+spid);
+  Qdelete.SQL.Clear;  
+  Qdelete.SQL.Add(Format(DELETE_P_TABLE, [TableName, TableName, spid]));
 
   try
     Qdelete.ExecSQl;
-  Except
+  except
   on E: Exception do
     begin
-     Log('������: '+E.Message);
+     Log('Ошибка: '+E.Message);
      Log('SQL   : '+Qdelete.SQL.GetText);
      Clipboard.Clear;
      Clipboard.AsText := Qdelete.SQL.GetText;
-     error := 1;
+     Exit;
     end;
   end;
 
-  if error = 1 then goto FIN;
-
-  fieldstr := SG.Cells[0, 0];
   for c := 1 to SG.ColCount - 1 do
   begin
     s := SG.Cells[c, 0];
+
     if s <> '' then
     begin
-
       QSchema.Close;
       QSchema.SQL.Clear;
-      QSchema.SQL.Add('select DATA_TYPE, NUMERIC_PRECISION,NUMERIC_SCALE,CHARACTER_MAXIMUM_LENGTH, column_Default');
-      QSchema.SQL.Add('from INFORMATION_SCHEMA.COLUMNS');
-      QSchema.SQL.Add('where TABLE_NAME = '+chr(39)+tablename_ed.Text+chr(39));
-      QSchema.SQL.Add('and COLUMN_NAME = '+chr(39)+s+chr(39));
+      QSchema.SQL.Add(Format(SELECT_TABLE_SCHEMA, [tablename_ed.Text, s]));
 
-      QSchema.Open;
+      try
+        QSchema.Open;
+      Except
+      on E: Exception do
+        begin
+          Log('Ошибка: '+E.Message);
+          Log('SQL   : '+QSchema.SQL.GetText);
+          Clipboard.Clear;
+          Clipboard.AsText := QSchema.SQL.GetText;
+          Exit;
+        end;
+      end;
 
-      if not QSchema.IsEmpty then
+      if QSchema.IsEmpty then
       begin
-
-        DATA_TYPE                := '';
-        NUMERIC_PRECISION        := '';
-        NUMERIC_SCALE            := '';
-        CHARACTER_MAXIMUM_LENGTH := '';
-        column_Default           := '';
-
+        Exit;
+      end
+      else
+      begin
         DATA_TYPE                := QSchema.FieldByName('DATA_TYPE').AsString;
         NUMERIC_PRECISION        := QSchema.FieldByName('NUMERIC_PRECISION').AsString;
         NUMERIC_SCALE            := QSchema.FieldByName('NUMERIC_SCALE').AsString;
         CHARACTER_MAXIMUM_LENGTH := QSchema.FieldByName('CHARACTER_MAXIMUM_LENGTH').AsString;
         column_Default           := QSchema.FieldByName('column_Default').AsString;
 
-        z := ',';
-
-        fieldstr := fieldstr + ', ' + s;
+        fieldstr := fieldstr + field_delimiter + s;
 
         if ((DATA_TYPE = 'numeric')
         or  (DATA_TYPE = 'money'))
@@ -372,38 +390,38 @@ begin
          for r := 1 to SG.RowCount - 1 do
          begin
            ss := StringReplace(SG.Cells[c, r], ',','.', [rfReplaceAll]);
-           ss := StringReplace(ss, ' ','', [rfReplaceAll]);
-           SG.Cells[c, r] := 'convert('+DATA_TYPE+'('+NUMERIC_PRECISION+','+NUMERIC_SCALE+'),'+ss+')'+z;
+           ss := StringReplace(ss, ' ', '', [rfReplaceAll]);
+           SG.Cells[c, r] := 'convert('+DATA_TYPE+'('+NUMERIC_PRECISION+','+NUMERIC_SCALE+'),'+ss+')';
+           if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
          end
-
         else
         if DATA_TYPE = 'int'
         then
          for r := 1 to SG.RowCount - 1 do
          begin
            ss := StringReplace(SG.Cells[c, r], ',','.', [rfReplaceAll]);
-           ss := StringReplace(ss, ' ','', [rfReplaceAll]);
-           SG.Cells[c, r] := 'convert('+DATA_TYPE+','+ss+')'+z;
+           ss := StringReplace(ss, ' ', '', [rfReplaceAll]);
+           SG.Cells[c, r] := 'convert('+DATA_TYPE+','+ss+')';
+           if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
          end
-
         else
         if DATA_TYPE = 'float' then
          for r := 1 to SG.RowCount - 1 do
          begin
            ss := StringReplace(SG.Cells[c, r], ',','.', [rfReplaceAll]);
            ss := StringReplace(ss, ' ','', [rfReplaceAll]);
-           SG.Cells[c, r] := 'convert('+DATA_TYPE+'('+NUMERIC_PRECISION+'),'+ss+')'+z;
+           SG.Cells[c, r] := 'convert('+DATA_TYPE+'('+NUMERIC_PRECISION+'),'+ss+')';
+           if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
          end
-
         else
         if DATA_TYPE = 'tinyint'
         then
          for r := 1 to SG.RowCount - 1 do
          begin
            ss := StringReplace(SG.Cells[c, r], ',','.', [rfReplaceAll]);
-           SG.Cells[c, r] := SG.Cells[c, r]+z;
+           SG.Cells[c, r] := SG.Cells[c, r];
+           if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
          end
-
         else
         if ((DATA_TYPE = 'char')
         or  (DATA_TYPE = 'varchar')
@@ -411,117 +429,103 @@ begin
         then
          for r := 1 to SG.RowCount - 1 do
          begin
-          SG.Cells[c, r] := 'convert('+DATA_TYPE+'('+CHARACTER_MAXIMUM_LENGTH+'),'+chr(39)+SG.Cells[c, r]+chr(39)+')'+z;
+          SG.Cells[c, r] := 'convert('+DATA_TYPE+'('+CHARACTER_MAXIMUM_LENGTH+'),'+chr(39)+SG.Cells[c, r]+chr(39)+')';
+          if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
          end
-
         else
         if ((DATA_TYPE = 'smalldatetime')
         or  (DATA_TYPE = 'datetime'))
         then
          for r := 1 to SG.RowCount - 1 do
          begin
-           SG.Cells[c, r] := 'convert('+DATA_TYPE+','+chr(39)+SG.Cells[c, r]+chr(39)+',103)'+z;
+           SG.Cells[c, r] := 'convert('+DATA_TYPE+','+chr(39)+SG.Cells[c, r]+chr(39)+',103)';
+           if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
          end;
-
       end;
     end;
+    Application.ProcessMessages;
   end;
 
-  //������ ��������� �������
-  for r := 1 to SG.RowCount - 1 do
-  begin
-    ss := SG.Cells[SG.ColCount - 1, r];
-    ss := Copy(ss, 1, Length(ss) - 1);
-    SG.Cells[SG.ColCount - 1, r] := ss;
-  end;
-
-  //���� � ������� ���� ���� identity - �������� ��������� ���
+  //Если в таблице есть поле identity - разрешим заполнять его
   QChkIdentityField.Close;
   QChkIdentityField.SQL.Clear;
-  QChkIdentityField.SQL.Add('declare @tn varchar(255)');
-  QChkIdentityField.SQL.Add('select @tn = '+chr(39)+Tablename+chr(39));
-  QChkIdentityField.SQL.Add('IF EXISTS(select top 1 1 from information_schema.columns where table_name = @tn and table_schema='+chr(39)+'dbo'+chr(39)+ 'and COLUMNPROPERTY(OBJECT_ID(@tn), column_name, '+chr(39)+'IsIdentity'+chr(39)+') = 1)');
-  QChkIdentityField.SQL.Add('SET IDENTITY_INSERT '+Tablename+' ON');
+  QChkIdentityField.SQL.Add(Format(CHECK_IDENTITY_FIELD, [TableName, TableName, TableName]));
 
   try
     QChkIdentityField.ExecSQL;
-  Except
+  except
   on E: Exception do
     begin
-      Log('������: '+E.Message);
+      Log('Ошибка: '+E.Message);
       Log('SQL   : '+QChkIdentityField.SQL.GetText);
       Clipboard.Clear;
       Clipboard.AsText := QChkIdentityField.SQL.GetText;
-      error := 1;
+      Exit;
     end;
   end;
 
-  if error = 1 then goto FIN;
+  fieldstr := SG.Cells[0, 0] + fieldstr;
 
   if fieldstr = '' then
   begin
-    Log('������ ��� ������������ ���������.');
-    goto FIN;
+    Log('Ошибка при формировании заголовка.');
+    Exit;
   end;
 
-  //��������� ������ �� Insert ��� ������ ������
+  // Формируем запрос на Insert для каждой строки
+  // Размер блока для единовременной вставки, чтобы не делать очень много единичных запросов
+  BATCH_SIZE := 50;
+  row_count  := 0;
+
   for r := 1 to SG.RowCount - 1 do
   begin
+    inc(row_count);
 
-    //count_lb.caption := inttostr(r);
-    QInsert.Close;
-    QInsert.SQL.Clear;
-    RecStr := spid+',';
-    for c := 1 to SG.ColCount - 1 do
+    if row_count = 1 then
     begin
-      s := SG.Cells[c, r];
-        RecStr := RecStr + s;
+      QInsert.Close;
+      QInsert.SQL.Clear;
     end;
 
-    QInsert.SQL.Add('Insert into '+Tablename);
-    QInsert.SQL.Add('('+fieldstr+')');
-    QInsert.SQL.Add('select '+recstr);
-    try
-      QInsert.ExecSQl;
-    Except
-    on E: Exception do
-      begin
-       Log('������: '+E.Message);
-       Log('SQL   : '+QInsert.SQL.GetText);
-       Clipboard.Clear;
-       Clipboard.AsText := QInsert.SQL.GetText;
-       error := 1;
-       Break;
+    // Формируем строку данных для вставки
+    RecStr := spid + field_delimiter;
+    for c := 1 to SG.ColCount - 1 do
+    begin
+      RecStr := RecStr + SG.Cells[c, r];
+    end;
+
+    QInsert.SQL.Add(Format(INSERT_TO_TABLE, [TableName, fieldstr, RecStr]));
+
+    if (row_count = BATCH_SIZE) or (r = SG.RowCount - 1) then
+    begin
+      try
+        // Выполняем вставку строк в таблицу БД
+        QInsert.ExecSQL;
+
+        // Выполнили пакет, сбрасываем счетчик строк
+        row_count := 0;
+      except
+        on E: Exception do
+        begin
+         Log('Ошибка: '+E.Message);
+         Log('SQL   : '+QInsert.SQL.GetText);
+         Clipboard.Clear;
+         Clipboard.AsText := QInsert.SQL.GetText;    
+         Exit;
+        end;
       end;
     end;
 
+    Application.ProcessMessages;
   end;
 
-  if error = 0 then
-    loadflag := true;
-
-  FIN:
-
-  if loadflag then
-  begin
-    for r:=0 to SG.RowCount-1 do
-      SG.Rows[r].Clear;
-
-    Log('���� ��������');
-    setFlag(1);
-  end
-  else
-  begin
-    setFlag(2);
-  end;
-
-  Result := loadflag;
+  Result := True;
 end;
 
 procedure TMainForm.ServerSet_BtnClick(Sender: TObject);
 begin
-  ADOConnection1.Close;
-  EditConnectionString(ADOConnection1);
+  ADOConn.Close;
+  EditConnectionString(ADOConn);
   CheckConnect;
 end;
 
@@ -533,7 +537,7 @@ begin
   Reg.OpenKey('\SOFTWARE\CSV_LOADER', true);
 
   Reg.WriteString('load_patch', Patch_Ed.text);
-  Reg.WriteString('con_str', ADOConnection1.ConnectionString);
+  Reg.WriteString('con_str', ADOConn.ConnectionString);
 
   Reg.Free;
 end;
@@ -549,7 +553,7 @@ begin
     then Patch_Ed.text := Reg.ReadString('load_patch');
 
   if reg.ValueExists('con_str')
-    then ADOConnection1.ConnectionString := Reg.ReadString('con_str');
+    then ADOConn.ConnectionString := Reg.ReadString('con_str');
 
   Reg.free;
 end;
