@@ -240,38 +240,39 @@ object MainForm: TMainForm
       end
     end
   end
-  object ADOConnection1: TADOConnection
+  object ADOConn: TADOConnection
     ConnectionString = 
       'Provider=SQLOLEDB.1;Password=123456;Persist Security Info=True;U' +
       'ser ID=dca;Initial Catalog=IFRS09_SecIssue_test;Data Source=finp' +
       'erftest'
     KeepConnection = False
     Provider = 'SQLOLEDB.1'
-    AfterConnect = ADOConnection1AfterConnect
-    BeforeDisconnect = ADOConnection1BeforeDisconnect
+    AfterConnect = ADOConnAfterConnect
+    BeforeDisconnect = ADOConnBeforeDisconnect
     Left = 304
     Top = 24
   end
   object Qdelete: TADOQuery
-    Connection = ADOConnection1
+    Connection = ADOConn
     Parameters = <>
     Left = 304
     Top = 56
   end
   object Qinsert: TADOQuery
-    Connection = ADOConnection1
+    Connection = ADOConn
+    ParamCheck = False
     Parameters = <>
     Left = 304
     Top = 88
   end
   object QSchema: TADOQuery
-    Connection = ADOConnection1
+    Connection = ADOConn
     Parameters = <>
     Left = 304
     Top = 120
   end
   object QChkIdentityField: TADOQuery
-    Connection = ADOConnection1
+    Connection = ADOConn
     Parameters = <>
     Left = 304
     Top = 152
