@@ -1,4 +1,4 @@
-unit main;
+﻿unit main;
 
 interface
 
@@ -384,14 +384,23 @@ begin
 
         fieldstr := fieldstr + field_delimiter + s;
 
-        if ((DATA_TYPE = 'numeric')
-        or  (DATA_TYPE = 'money'))
+        if DATA_TYPE = 'numeric'
         then
          for r := 1 to SG.RowCount - 1 do
          begin
            ss := StringReplace(SG.Cells[c, r], ',','.', [rfReplaceAll]);
            ss := StringReplace(ss, ' ', '', [rfReplaceAll]);
            SG.Cells[c, r] := 'convert('+DATA_TYPE+'('+NUMERIC_PRECISION+','+NUMERIC_SCALE+'),'+ss+')';
+           if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
+         end
+        else
+        if DATA_TYPE = 'money'
+        then
+         for r := 1 to SG.RowCount - 1 do
+         begin
+           ss := StringReplace(SG.Cells[c, r], ',','.', [rfReplaceAll]);
+           ss := StringReplace(ss, ' ', '', [rfReplaceAll]);
+           SG.Cells[c, r] := 'convert('+DATA_TYPE+','+ss+')';
            if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
          end
         else
