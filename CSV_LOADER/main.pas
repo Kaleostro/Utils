@@ -34,6 +34,7 @@ type
     RadioGroup1: TRadioGroup;
     RB_sel: TRadioButton;
     RB_all: TRadioButton;
+    spid_cb: TCheckBox;
 
     procedure Load_BtnClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
@@ -43,6 +44,7 @@ type
     procedure ServerSet_BtnClick(Sender: TObject);
     procedure ADOConnAfterConnect(Sender: TObject);
     procedure ADOConnBeforeDisconnect(Sender: TObject);
+    procedure spid_cbClick(Sender: TObject);
   private
     procedure ReadTabFile(FN: TFileName; FieldSeparator:Char; SG: TStringGrid);
     procedure ShowFileList;
@@ -134,6 +136,11 @@ begin
 
 end;
 
+procedure TMainForm.spid_cbClick(Sender: TObject);
+begin
+  spid_ed.Enabled := spid_cb.Checked;
+end;
+
 procedure TMainForm.ADOConnAfterConnect(Sender: TObject);
 var str :TStringList;
 begin
@@ -197,6 +204,7 @@ end;
 
 procedure TMainForm.Load_BtnClick(Sender: TObject);
 var i: integer;
+    s_t:string;
 begin
 
   if not CheckConnect then
@@ -208,6 +216,11 @@ begin
   Screen.Cursor       := crHourGlass;
   StringGrid1.Enabled := false;
 
+  if spid_ed.Enabled then
+    s_t := spid_ed.Text
+  else
+    s_t := '';
+
   for i := 0 to FileListBox.Items.Count - 1 do
   begin
     if FileListBox.Selected[i] or RB_all.Checked then
@@ -218,7 +231,7 @@ begin
 
       Log('Загрузка файла: '+FileListBox.Items[i]);
 
-      if SaveToBase(StringGrid1, tablename_ed.text, spid_ed.Text) then
+      if SaveToBase(StringGrid1, tablename_ed.text, s_t) then
       begin
         Log('Файл загружен');
         setFlag(1);
@@ -260,7 +273,7 @@ begin
   Les_Strings := TStringList.Create;
   CountCols :=0;
   try
-    // Load the file, Datei laden 
+    // Load the file, Datei laden
     Les_Strings.LoadFromFile(FN);
 
     // Get the number of rows, Anzahl der Zeilen ermitteln 
@@ -306,6 +319,7 @@ var r, row_count:     integer;
     c, BATCH_SIZE:    integer;
     fieldstr, recstr: string;
     s, ss:            string;
+    i_bad_delimeter:  integer;
     field_delimiter:  char;
     DATA_TYPE, NUMERIC_PRECISION,NUMERIC_SCALE,CHARACTER_MAXIMUM_LENGTH, column_Default: string;
 begin
@@ -330,26 +344,33 @@ begin
     Exit;
   end;
 
-  Qdelete.Close;
-  Qdelete.SQL.Clear;  
-  Qdelete.SQL.Add(Format(DELETE_P_TABLE, [TableName, TableName, spid]));
+  if spid <> '' then
+  begin
+    Qdelete.Close;
+    Qdelete.SQL.Clear;
+    Qdelete.SQL.Add(Format(DELETE_P_TABLE, [TableName, TableName, spid]));
 
-  try
-    Qdelete.ExecSQl;
-  except
-  on E: Exception do
-    begin
-     Log('Ошибка: '+E.Message);
-     Log('SQL   : '+Qdelete.SQL.GetText);
-     Clipboard.Clear;
-     Clipboard.AsText := Qdelete.SQL.GetText;
-     Exit;
+    try
+      Qdelete.ExecSQl;
+    except
+    on E: Exception do
+      begin
+       Log('Ошибка: '+E.Message);
+       Log('SQL   : '+Qdelete.SQL.GetText);
+       Clipboard.Clear;
+       Clipboard.AsText := Qdelete.SQL.GetText;
+       Exit;
+      end;
     end;
   end;
 
-  for c := 1 to SG.ColCount - 1 do
+  for c := 0 to SG.ColCount - 1 do
   begin
     s := SG.Cells[c, 0];
+
+    i_bad_delimeter := Pos(':', s);
+    if i_bad_delimeter > 0 then
+       s := copy(s, 0, i_bad_delimeter - 1);
 
     if s <> '' then
     begin
@@ -382,8 +403,20 @@ begin
         CHARACTER_MAXIMUM_LENGTH := QSchema.FieldByName('CHARACTER_MAXIMUM_LENGTH').AsString;
         column_Default           := QSchema.FieldByName('column_Default').AsString;
 
-        fieldstr := fieldstr + field_delimiter + s;
+        if c > 0 then
+          fieldstr := fieldstr + field_delimiter + s
+        else
+          fieldstr := s;
 
+        if (spid <> '') and (s = 'SPID') then
+        begin
+         for r := 1 to SG.RowCount - 1 do
+         begin
+           SG.Cells[c, r] := spid;
+           if c < SG.ColCount - 1 then SG.Cells[c, r] := SG.Cells[c, r] + field_delimiter;
+         end
+        end
+        else
         if DATA_TYPE = 'numeric'
         then
          for r := 1 to SG.RowCount - 1 do
@@ -473,8 +506,6 @@ begin
     end;
   end;
 
-  fieldstr := SG.Cells[0, 0] + fieldstr;
-
   if fieldstr = '' then
   begin
     Log('Ошибка при формировании заголовка.');
@@ -497,8 +528,8 @@ begin
     end;
 
     // Формируем строку данных для вставки
-    RecStr := spid + field_delimiter;
-    for c := 1 to SG.ColCount - 1 do
+    RecStr := '';
+    for c := 0 to SG.ColCount - 1 do
     begin
       RecStr := RecStr + SG.Cells[c, r];
     end;

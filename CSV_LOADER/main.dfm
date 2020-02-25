@@ -3,7 +3,7 @@ object MainForm: TMainForm
   Top = 0
   Caption = #1047#1072#1075#1088#1091#1079#1082#1072' csv '#1092#1072#1081#1083#1086#1074
   ClientHeight = 412
-  ClientWidth = 699
+  ClientWidth = 747
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,7 +18,7 @@ object MainForm: TMainForm
   object StringGrid1: TStringGrid
     Left = 297
     Top = 0
-    Width = 402
+    Width = 450
     Height = 303
     Align = alClient
     BevelKind = bkSoft
@@ -30,16 +30,18 @@ object MainForm: TMainForm
     FixedRows = 0
     ParentCtl3D = False
     TabOrder = 1
+    ExplicitWidth = 402
   end
   object Panel1: TPanel
     Left = 0
     Top = 303
-    Width = 699
+    Width = 747
     Height = 109
     Align = alBottom
     Ctl3D = False
     ParentCtl3D = False
     TabOrder = 2
+    ExplicitWidth = 699
     object Label1: TLabel
       Left = 303
       Top = 6
@@ -144,9 +146,9 @@ object MainForm: TMainForm
       Text = '1'
     end
     object Log_memo: TMemo
-      Left = 380
+      Left = 399
       Top = 1
-      Width = 318
+      Width = 347
       Height = 107
       Align = alRight
       Anchors = [akLeft, akTop, akRight, akBottom]
@@ -185,6 +187,16 @@ object MainForm: TMainForm
       Height = 17
       Caption = #1074#1089#1077
       TabOrder = 7
+    end
+    object spid_cb: TCheckBox
+      Left = 376
+      Top = 4
+      Width = 17
+      Height = 17
+      Checked = True
+      State = cbChecked
+      TabOrder = 8
+      OnClick = spid_cbClick
     end
   end
   object Panel2: TPanel
