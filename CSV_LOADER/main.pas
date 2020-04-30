@@ -408,7 +408,7 @@ begin
         else
           fieldstr := s;
 
-        if (spid <> '') and (s = 'SPID') then
+        if (spid <> '') and (UpperCase(s) = 'SPID') then
         begin
          for r := 1 to SG.RowCount - 1 do
          begin
